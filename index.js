@@ -3,10 +3,11 @@ const app = express();
 app.use(express.json());
 
 // ─── CONFIGURAÇÕES ───────────────────────────────────────────────
-const TRELLO_KEY   = '3847a54a8dbec46469fe25b91b79297b';
-const TRELLO_TOKEN = 'ATTA905bcb93c7aed5bb69718db2340a31df62e782816856cd56e4174856eae9468f9CD900C7';
+const TRELLO_KEY   = process.env.TRELLO_KEY   || '';
+const TRELLO_TOKEN = process.env.TRELLO_TOKEN || '';
+const GRUPO_ID     = process.env.GRUPO_ID     || '';
 
-// IDs das listas do seu board (capturados automaticamente)
+// IDs das listas do seu board
 const LISTAS = {
   morumbi:   '6a27655ba538ef44b4f78ca4',
   will:      '6a27655ba538ef44b4f78ca5',
@@ -14,9 +15,6 @@ const LISTAS = {
   sofia:     '6a27662861a5bd7ea1b6e765',
   mackenzie: '6a27655ba538ef44b4f78ca3',
 };
-
-// Número do grupo (você preenche depois — instruções no README)
-const GRUPO_ID = process.env.GRUPO_ID || '';
 // ─────────────────────────────────────────────────────────────────
 
 // Parseia a mensagem no formato "Área: Tarefa"
@@ -56,14 +54,11 @@ app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
 
-    // Loga o evento recebido para debug
+    // Loga o evento recebido
     console.log(`[EVENTO] ${body.event || 'sem event'}`);
 
     // Ignora eventos que não são mensagens
     if (body.event !== 'messages.upsert') return res.sendStatus(200);
-
-    // Loga o payload completo para debug
-    console.log('[PAYLOAD]', JSON.stringify(body.data, null, 2));
 
     // A Evolution API pode enviar data como array ou objeto com .messages
     const data = body.data;
@@ -83,13 +78,12 @@ app.post('/webhook', async (req, res) => {
     }
 
     const remoteJid = msg.key?.remoteJid || '';
-    const fromMe    = msg.key?.fromMe;
     const texto     = msg.message?.conversation
                    || msg.message?.extendedTextMessage?.text
                    || msg.message?.imageMessage?.caption
                    || '';
 
-    console.log(`[MSG] remoteJid=${remoteJid} fromMe=${fromMe} texto="${texto}"`);
+    console.log(`[MSG] remoteJid=${remoteJid} texto="${texto}"`);
 
     // Só processa mensagens do grupo configurado
     if (GRUPO_ID && !remoteJid.includes(GRUPO_ID)) {
