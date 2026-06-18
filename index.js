@@ -56,26 +56,52 @@ app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
 
+    // Loga o evento recebido para debug
+    console.log(`[EVENTO] ${body.event || 'sem event'}`);
+
     // Ignora eventos que não são mensagens
     if (body.event !== 'messages.upsert') return res.sendStatus(200);
 
-    const msg = body.data?.messages?.[0];
-    if (!msg) return res.sendStatus(200);
+    // Loga o payload completo para debug
+    console.log('[PAYLOAD]', JSON.stringify(body.data, null, 2));
+
+    // A Evolution API pode enviar data como array ou objeto com .messages
+    const data = body.data;
+    let msg = null;
+
+    if (Array.isArray(data)) {
+      msg = data[0];
+    } else if (data?.messages) {
+      msg = data.messages[0];
+    } else if (data?.key) {
+      msg = data;
+    }
+
+    if (!msg) {
+      console.log('[IGNORADO] sem mensagem no payload');
+      return res.sendStatus(200);
+    }
 
     const remoteJid = msg.key?.remoteJid || '';
     const fromMe    = msg.key?.fromMe;
     const texto     = msg.message?.conversation
                    || msg.message?.extendedTextMessage?.text
+                   || msg.message?.imageMessage?.caption
                    || '';
 
+    console.log(`[MSG] remoteJid=${remoteJid} fromMe=${fromMe} texto="${texto}"`);
+
     // Só processa mensagens do grupo configurado
-    if (GRUPO_ID && !remoteJid.includes(GRUPO_ID)) return res.sendStatus(200);
+    if (GRUPO_ID && !remoteJid.includes(GRUPO_ID)) {
+      console.log(`[IGNORADO] grupo diferente: ${remoteJid}`);
+      return res.sendStatus(200);
+    }
 
-    // Ignora mensagens enviadas pelo próprio Business (fromMe = true)
-    // Se quiser aceitar dos dois lados, remova esta linha:
-    if (fromMe) return res.sendStatus(200);
-
-    console.log(`[MENSAGEM] de ${remoteJid}: ${texto}`);
+    // Ignora mensagens sem texto
+    if (!texto) {
+      console.log('[IGNORADO] mensagem sem texto');
+      return res.sendStatus(200);
+    }
 
     const parsed = parsearMensagem(texto);
     if (!parsed) {
